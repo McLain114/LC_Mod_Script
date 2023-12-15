@@ -51,8 +51,6 @@ function Get-LatestVersionFromThunderstore {
 
 # Set the temporary directory path
 $tempDir = Join-Path $env:TEMP "LethalCompanyScriptTemp"
-# $tempDir = "C:\Temp\LethalCompanyScriptTemp"
-
 
 Write-Host "Actual TEMP directory: $([System.IO.Path]::GetTempPath())"
 Write-Host "TEMP Environment Variable: $env:TEMP"
@@ -95,68 +93,78 @@ if ($latestVersion) {
     $customVersion = "$latestVersion.0"
 
     # Construct the correct download URL
-    $downloadUrl = "https://github.com/$githubOwner/$githubRepo/releases/download/v$latestVersion/BepInEx_x64_$customVersion.zip"
+    $bepinexdownloadUrl = "https://github.com/$githubOwner/$githubRepo/releases/download/v$latestVersion/BepInEx_x64_$customVersion.zip"
     
     Write-Host "Latest version for BepInEx: $customVersion"
-    Write-Host "Download URL: $downloadUrl"
+    Write-Host "Download URL: $bepinexdownloadUrl"
 } else {
     Write-Host "Failed to retrieve the latest version for BepInEx."
 }
 
-$urls = @(
-    "$downloadUrl"
-)
+$bepinexdownloadPath = [System.IO.Path]::Combine($tempDir, "BepInEx.zip")
+$bepinexextractPath = [System.IO.Path]::Combine($tempDir, "BepInEx")
 
-# Example Thunderstore URLs without version information
-$baseUrls = @(
-    "https://thunderstore.io/c/lethal-company/p/bizzlemip/BiggerLobby/",
-    "https://thunderstore.io/c/lethal-company/p/2018/LC_API/",
-    "https://thunderstore.io/c/lethal-company/p/tinyhoot/ShipLobby/"
-)
-$dlbaseUrls = @(
-    "https://thunderstore.io/package/download/bizzlemip/BiggerLobby/",
-    "https://thunderstore.io/package/download/2018/LC_API/",
-    "https://thunderstore.io/package/download/tinyhoot/ShipLobby/"
+# Define a hashtable or an array of objects with user/mod information
+$mods = @(
+    @{ User = "bizzlemip"; Mod = "BiggerLobby" },
+    @{ User = "2018"; Mod = "LC_API" },
+    @{ User = "tinyhoot"; Mod = "ShipLobby" },
+    @{ User = "SirTyler"; Mod = "BetterTeleporter" },
+    @{ User = "Suskitech"; Mod = "AlwaysHearActiveWalkies" },
+    @{ User = "Sligili"; Mod = "More_Emotes" },
+    @{ User = "FlipMods"; Mod = "ReservedItemSlotCore" },
+    @{ User = "FlipMods"; Mod = "ReservedFlashlightSlot" },
+    @{ User = "FlipMods"; Mod = "ReservedWalkieSlot" },
+    @{ User = "FlipMods"; Mod = "BetterStamina" },
+    @{ User = "AlexCodesGames"; Mod = "AdditionalSuits" },
+    @{ User = "TheBeeTeam"; Mod = "PersistentPurchases" }
 )
 
 # Get the latest version for each Thunderstore mod
 $versions = @()
-foreach ($baseUrl in $baseUrls) {
+foreach ($mod in $mods) {
+    $baseUrl = "https://thunderstore.io/c/lethal-company/p/$($mod['User'])/$($mod['Mod'])/"
     $latestVersion = Get-LatestVersionFromThunderstore -url $baseUrl
     if ($latestVersion) {
-        Write-Host "Latest version for ${baseUrl}: $latestVersion"
-        $versions += $latestVersion
+        Write-Host "Latest version for $($mod['User'])/$($mod['Mod']): $latestVersion"
+        $mod['Version'] = $latestVersion
     } else {
-        Write-Host "Failed to retrieve version for $baseUrl"
+        Write-Host "Failed to retrieve version for $($mod['User'])/$($mod['Mod'])"
         Exit
     }
 }
 
 # Combine base URLs with the latest versions
-$urls += for ($i = 0; $i -lt $dlbaseUrls.Count; $i++) {
-    $dlbaseUrls[$i] + $versions[$i] + '/'
+$urls = @(
+    $bepinexdownloadUrl
+    )
+$urls = foreach ($mod in $mods) {
+    "https://thunderstore.io/package/download/$($mod['User'])/$($mod['Mod'])/$($mod['Version'])/"
 }
 
 Write-Host "urls: $urls"
 
 # Set the destination paths for the downloaded files and extracted folders in the temp directory
-$downloadPaths = @(
-    [System.IO.Path]::Combine($tempDir, 'BepInEx_x64.zip'),
-    [System.IO.Path]::Combine($tempDir, 'BiggerLobby.zip'),
-    [System.IO.Path]::Combine($tempDir, 'LC_API.zip'),
-    [System.IO.Path]::Combine($tempDir, 'ShipLobby.zip')
-)
+$downloadPaths = foreach ($mod in $mods) {
+    [System.IO.Path]::Combine($tempDir, "$($mod['Mod']).zip")
+}
 
-$extractPaths = @(
-    [System.IO.Path]::Combine($tempDir, 'BepInEx'),
-    [System.IO.Path]::Combine($tempDir, 'BiggerLobby'),
-    [System.IO.Path]::Combine($tempDir, 'LC_API'),
-    [System.IO.Path]::Combine($tempDir, 'ShipLobby')
-)
+$extractPaths = foreach ($mod in $mods) {
+    [System.IO.Path]::Combine($tempDir, $mod['Mod'])
+}
 
 # Download files to the temporary directory
-for ($i=0; $i -lt $urls.Count; $i++) {
+try {
+    Write-Host "Downloading BepInEx..."
+    Invoke-WebRequest -Uri $bepinexdownloadUrl -OutFile $bepinexdownloadPath
+} catch {
+    Write-Host "Error downloading BepInEx: $_"
+    # Exit the script or handle the error as needed
+    exit 1
+}
+for ($i = 0; $i -lt $urls.Count; $i++) {
     try {
+        Write-Host "Downloading $($mods[$i]['Mod'])..."
         Invoke-WebRequest -Uri $urls[$i] -OutFile $downloadPaths[$i]
     } catch {
         Write-Host "Error downloading $($urls[$i]): $_"
@@ -166,55 +174,69 @@ for ($i=0; $i -lt $urls.Count; $i++) {
 }
 
 # Extract files to the temporary directory
-for ($i=0; $i -lt $downloadPaths.Count; $i++) {
+Write-Host "Extracting BepInEx..."
+Expand-Archive -Path $bepinexdownloadPath -DestinationPath $bepinexextractPath -Force
+
+for ($i = 0; $i -lt $downloadPaths.Count; $i++) {
+    Write-Host "Extracting $($mods[$i]['Mod'])..."
     Expand-Archive -Path $downloadPaths[$i] -DestinationPath $extractPaths[$i] -Force
-}
-
-# Function to move files and folders with detailed error handling
-function Move-WithErrorHandling {
-    param(
-        [string]$source,
-        [string]$destination
-    )
-
-    # Ensure the source directory exists
-    if (-not (Test-Path $source -PathType Container)) {
-        Write-Host "Source directory $source does not exist."
-        return
-    }
-
-    # Create the destination directory if it doesn't exist
-    $destinationDir = Split-Path $destination
-    if (-not (Test-Path $destinationDir -PathType Container)) {
-        New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
-    }
-
-    # Attempt to move the items
-    try {
-        Move-Item $source $destination -Force -ErrorAction Stop
-        Write-Host "Moved items from $source to $destination"
-    } catch {
-        $errorMessage = $_.Exception.Message
-        Write-Host "Failed to move items from $source to $destination. Error: $errorMessage"
-    }
 }
 
 # Check if the directory is not null before proceeding
 if ($lethalCompanyDir -ne $null) {
-    # Set the destination paths for the downloaded files and extracted folders in the temp directory
+    # Set the destination path for BepInEx
     $destinationBepInEx = Join-Path $lethalCompanyDir 'BepInEx'
-    $destinationBiggerLobby = Join-Path $lethalCompanyDir 'BepInEx'
-    $destinationLC_API = Join-Path $lethalCompanyDir 'BepInEx\plugins'
-    $destinationShipLobby = Join-Path $lethalCompanyDir 'BepInEx\plugins'
 
-    # Copy specific files and folders from the temp directory to the desired location
-    # Adjust the source and destination paths accordingly
-    Copy-Item "$tempDir\BepInEx\BepInEx\core" $destinationBepInEx -Force
-    Copy-Item "$tempDir\BepInEx\BepInEx\core\*" $destinationBepInEx\core -Force
-    Copy-Item "$tempDir\BiggerLobby\BepInEx\*" $destinationBiggerLobby -Recurse -Force
-    Copy-Item "$tempDir\LC_API\LC_API.dll" $destinationLC_API -Force
-    Copy-Item "$tempDir\ShipLobby\plugins\ShipLobby\ShipLobby.dll" $destinationShipLobby -Force
+    # Set the destination path for BepInEx core
+    $destinationBepInExCore = Join-Path $destinationBepInEx 'core'
 
+    # Check if the destination directory exists; if not, create it
+    if (-not (Test-Path $destinationBepInExCore -PathType Container)) {
+        New-Item -ItemType Directory -Path $destinationBepInExCore -Force | Out-Null
+    }
+
+    # Copy BepInEx core files
+    Write-Host "Installing BepInEx..."
+    Copy-Item "$tempDir\BepInEx\BepInEx\core\*" $destinationBepInExCore -Recurse -Force
+
+    # Install each mod
+    for ($i = 0; $i -lt $mods.Count; $i++) {
+        $mod = $mods[$i]
+        Write-Host "Installing $($mod['Mod'])..."
+
+        # Set the source and destination paths for the mod
+        $modSourcePath = $extractPaths[$i]
+        $modDestinationPath = Join-Path $destinationBepInEx 'plugins'
+
+        # Check if BepInEx folder exists in the extracted directory
+        $bepInExFolder = Join-Path $modSourcePath 'BepInEx'
+        if ((Test-Path $bepInExFolder) -and ((Get-ChildItem $bepInExFolder -Recurse) | Measure-Object).Count -gt 0) {
+            Write-Host "Copying BepInEx folder from $($mod['Mod'])..."
+            Copy-Item "$bepInExFolder\*" $destinationBepInEx -Recurse -Force
+        } else {
+            # If no BepInEx folder, create a subdirectory with the name of the mod
+            $modDestinationPath = Join-Path $modDestinationPath $mod['Mod']
+            
+            # Check if the destination directory already exists
+            if (-not (Test-Path $modDestinationPath -PathType Container)) {
+                New-Item -ItemType Directory -Path $modDestinationPath | Out-Null
+            }
+
+            # Check if the extracted folder has a subfolder with the name of the mod
+            $modSourceSubfolder = Join-Path $modSourcePath $mod['Mod']
+            $modSourcePluginsSubfolder = Join-Path $modSourcePath 'plugins'
+            if ((Test-Path $modSourceSubfolder) -and ((Get-ChildItem $modSourceSubfolder -Recurse) | Measure-Object).Count -gt 0) {
+                Write-Host "Copying contents from subfolder $($mod['Mod'])..."
+                Copy-Item "$modSourceSubfolder\*" $modDestinationPath -Recurse -Force
+            } elseif ((Test-Path $modSourcePluginsSubfolder) -and ((Get-ChildItem $modSourcePluginsSubfolder -Recurse) | Measure-Object).Count -gt 0) {
+                Write-Host "Copying contents from subfolder 'plugins'..."
+                Copy-Item "$modSourcePluginsSubfolder\*" $modDestinationPath -Recurse -Force
+            } else {
+                # Copy mod files directly
+                Copy-Item "$modSourcePath\*" $modDestinationPath -Recurse -Force
+            }
+        }
+    }
 } else {
     Write-Host "Lethal Company directory is null. Cannot proceed with moving items."
 }
