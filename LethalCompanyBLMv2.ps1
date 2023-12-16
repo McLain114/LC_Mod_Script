@@ -1,24 +1,28 @@
 # Function to find SteamLibrary directory across all drives
 function Find-SteamLibrary {
-    # Get all logical drives on the system
-    $drives = Get-WmiObject Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object -ExpandProperty DeviceID
+    $steamProgram1Path = Join-Path $env:SystemDrive 'Program Files (x86)\Steam\steamapps\common\Lethal Company'
+    if (Test-Path $steamProgram1Path) {
+        $steamLibraryPath = $steamProgram1Path
+        return $steamLibraryPath
+    } else {
+        # Get all logical drives on the system
+        $drives = Get-WmiObject Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object -ExpandProperty DeviceID
 
-    foreach ($drive in $drives) {
-        $steamProgram1Path = Join-Path $drive 'Program Files (x86)\Steam\steamapps\common\Lethal Company'
-        $steamProgram2Path = Join-Path $drive 'Steam\steamapps\common\Lethal Company'
-        $steamLibraryPath = Join-Path $drive 'SteamLibrary\steamapps\common\Lethal Company'
-        if (Test-Path $steamLibraryPath) {
-            return $steamLibraryPath
-        } elseif (Test-Path $steamProgram1Path) {
-            $steamLibraryPath = $steamProgram1Path
-            return $steamLibraryPath
-        } elseif (Test-Path $steamProgram2Path) {
-            $steamLibraryPath = $steamProgram2Path
-            return $steamLibraryPath
+        Write-Host "drives: $drives"
+
+        foreach ($drive in $drives) {
+            $steamProgram2Path = Join-Path $drive 'Steam\steamapps\common\Lethal Company'
+            $steamLibraryPath = Join-Path $drive 'SteamLibrary\steamapps\common\Lethal Company'
+            if (Test-Path $steamLibraryPath) {
+                return $steamLibraryPath
+            } elseif (Test-Path $steamProgram2Path) {
+                $steamLibraryPath = $steamProgram2Path
+                return $steamLibraryPath
+            }
         }
+        Write-Host "Couldn't find the Lethal Company directory..."
+        return $null
     }
-
-    return $null
 }
 
 # Function to get the latest version from GitHub releases using the GitHub API
