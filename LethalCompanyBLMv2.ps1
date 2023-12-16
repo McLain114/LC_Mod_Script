@@ -78,6 +78,16 @@ if ($lethalCompanyDir -eq $null) {
     Write-Host "Lethal Company directory: $lethalCompanyDir"
 }
 
+# Define a variable to indicate whether to clean up BepInEx folder
+$CleanupBepInEx = $true
+
+# Check if the script was called with the -CleanupBepInEx switch
+foreach ($arg in $args) {
+    if ($arg -eq "-NoCleanupBepInEx") {
+        $CleanupBepInEx = $false
+    }
+}
+
 # Pause for 10 seconds before closing the PowerShell console
 Start-Sleep -Seconds 10
 
@@ -195,6 +205,22 @@ if ($lethalCompanyDir -ne $null) {
         New-Item -ItemType Directory -Path $destinationBepInExCore -Force | Out-Null
     }
 
+    # Check if the destination directory exists; if not, create it
+    if ($CleanupBepInEx -and (Test-Path $destinationBepInEx -PathType Container)) {
+        Write-Host "Cleaning up BepInEx folder..."
+        Remove-Item $destinationBepInEx -Recurse -Force
+    }
+
+    # Create the destination directory if it doesn't exist
+    if (-not (Test-Path $destinationBepInEx -PathType Container)) {
+        New-Item -ItemType Directory -Path $destinationBepInEx -Force | Out-Null
+    }
+
+    # Check if the destination directory exists; if not, create it
+    if (-not (Test-Path $destinationBepInExCore -PathType Container)) {
+        New-Item -ItemType Directory -Path $destinationBepInExCore -Force | Out-Null
+    }
+
     # Copy BepInEx core files
     Write-Host "Installing BepInEx..."
     Copy-Item "$tempDir\BepInEx\BepInEx\core\*" $destinationBepInExCore -Recurse -Force
@@ -243,3 +269,5 @@ if ($lethalCompanyDir -ne $null) {
 
 # Remove the temporary directory
 Remove-Item $tempDir -Recurse -Force
+
+Write-Host "Lethal Company Mods Script completed."
