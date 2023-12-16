@@ -10,9 +10,11 @@ function Find-SteamLibrary {
         if (Test-Path $steamLibraryPath) {
             return $steamLibraryPath
         } elseif (Test-Path $steamProgram1Path) {
-            return $steamProgram1Path
+            $steamLibraryPath = $steamProgram1Path
+            return $steamLibraryPath
         } elseif (Test-Path $steamProgram2Path) {
-            return $steamProgram2Path
+            $steamLibraryPath = $steamProgram2Path
+            return $steamLibraryPath
         }
     }
 
