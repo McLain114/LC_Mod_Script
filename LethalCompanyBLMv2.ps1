@@ -4,8 +4,11 @@ function Find-SteamLibrary {
     $drives = Get-WmiObject Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object -ExpandProperty DeviceID
 
     foreach ($drive in $drives) {
+        $steamProgramsPath = Join-Path $drive 'Program Files (x86)\Steam\steamapps\common\Lethal Company'
         $steamLibraryPath = Join-Path $drive 'SteamLibrary\steamapps\common\Lethal Company'
         if (Test-Path $steamLibraryPath) {
+            return $steamLibraryPath
+        } elseif (Test-Path $steamProgramsPath) {
             return $steamLibraryPath
         }
     }
