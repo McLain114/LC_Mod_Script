@@ -1,6 +1,7 @@
 # Function to find SteamLibrary directory across all drives
 function Find-SteamLibrary {
     $steamProgram1Path = Join-Path $env:SystemDrive 'Program Files (x86)\Steam\steamapps\common\Lethal Company'
+    Write-Host "$steamProgram1Path"
     if (Test-Path $steamProgram1Path) {
         $steamLibraryPath = $steamProgram1Path
         return $steamLibraryPath
@@ -74,6 +75,8 @@ if (-not (Test-Path $tempDir -PathType Container)) {
         Write-Host "Temporary Directory Created: $tempDir"
     } catch {
         Write-Host "Failed to create the temporary directory: $_"
+        # Pause for 10 seconds before closing the PowerShell console
+        Start-Sleep -Seconds 10
         exit
     }
 } else {
@@ -85,6 +88,8 @@ $lethalCompanyDir = Find-SteamLibrary
 
 if ($lethalCompanyDir -eq $null) {
     Write-Host "Lethal Company directory not found."
+    # Pause for 10 seconds before closing the PowerShell console
+    Start-Sleep -Seconds 10
     exit
 } else {
     Write-Host "Lethal Company directory: $lethalCompanyDir"
@@ -99,9 +104,6 @@ foreach ($arg in $args) {
         $CleanupBepInEx = $false
     }
 }
-
-# Pause for 10 seconds before closing the PowerShell console
-Start-Sleep -Seconds 10
 
 # GitHub repository information
 $githubOwner = 'BepInEx'
@@ -152,6 +154,8 @@ foreach ($mod in $mods) {
         $mod['Version'] = $latestVersion
     } else {
         Write-Host "Failed to retrieve version for $($mod['User'])/$($mod['Mod'])"
+        # Pause for 10 seconds before closing the PowerShell console
+        Start-Sleep -Seconds 10
         Exit
     }
 }
@@ -181,6 +185,8 @@ try {
     Invoke-WebRequest -Uri $bepinexdownloadUrl -OutFile $bepinexdownloadPath
 } catch {
     Write-Host "Error downloading BepInEx: $_"
+    # Pause for 10 seconds before closing the PowerShell console
+    Start-Sleep -Seconds 10
     # Exit the script or handle the error as needed
     exit 1
 }
@@ -190,6 +196,8 @@ for ($i = 0; $i -lt $urls.Count; $i++) {
         Invoke-WebRequest -Uri $urls[$i] -OutFile $downloadPaths[$i]
     } catch {
         Write-Host "Error downloading $($urls[$i]): $_"
+        # Pause for 10 seconds before closing the PowerShell console
+        Start-Sleep -Seconds 10
         # Exit the script or handle the error as needed
         exit 1
     }
@@ -277,9 +285,13 @@ if ($lethalCompanyDir -ne $null) {
     }
 } else {
     Write-Host "Lethal Company directory is null. Cannot proceed with moving items."
+    # Pause for 10 seconds before closing the PowerShell console
+    Start-Sleep -Seconds 10
 }
 
 # Remove the temporary directory
 Remove-Item $tempDir -Recurse -Force
 
 Write-Host "Lethal Company Mods Script completed."
+# Pause for 10 seconds before closing the PowerShell console
+Start-Sleep -Seconds 10
