@@ -141,6 +141,7 @@ $mods = @(
     @{ User = "FlipMods"; Mod = "ReservedWalkieSlot" },
     @{ User = "FlipMods"; Mod = "BetterStamina" },
     @{ User = "AlexCodesGames"; Mod = "AdditionalSuits" },
+    @{ User = "RugbugRedfern"; Mod = "Skinwalkers" },
     @{ User = "TheBeeTeam"; Mod = "PersistentPurchases" }
 )
 
