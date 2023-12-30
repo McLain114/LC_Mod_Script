@@ -1,29 +1,42 @@
-# Function to find SteamLibrary directory across all drives
-function Find-SteamLibrary {
-    $steamProgram1Path = Join-Path $env:SystemDrive 'Program Files (x86)\Steam\steamapps\common\Lethal Company'
-    Write-Host "$steamProgram1Path"
-    if (Test-Path $steamProgram1Path) {
-        $steamLibraryPath = $steamProgram1Path
-        return $steamLibraryPath
-    } else {
-        # Get all logical drives on the system
-        $drives = Get-WmiObject Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object -ExpandProperty DeviceID
+# Function to find all instances of the Lethal Company directory
+function Find-LethalCompanyPaths {
+    param (
+        [string]$rootPath
+    )
+    Write-Host "Beginning search for any Lethal Company Steam directory on drive $rootPath..."
+    # Function to check if the given path contains the Lethal Company directory
+    function Test-LethalCompanyPath {
+        param (
+            [string]$path
+        )
 
-        Write-Host "drives: $drives"
-
-        foreach ($drive in $drives) {
-            $steamProgram2Path = Join-Path $drive 'Steam\steamapps\common\Lethal Company'
-            $steamLibraryPath = Join-Path $drive 'SteamLibrary\steamapps\common\Lethal Company'
-            if (Test-Path $steamLibraryPath) {
-                return $steamLibraryPath
-            } elseif (Test-Path $steamProgram2Path) {
-                $steamLibraryPath = $steamProgram2Path
-                return $steamLibraryPath
-            }
-        }
-        Write-Host "Couldn't find the Lethal Company directory..."
-        return $null
+        $lethalCompanyPath = Join-Path $path 'steamapps\common\Lethal Company'
+        return (Test-Path $lethalCompanyPath)
     }
+
+    # Recursively search for all instances of the Lethal Company directory
+    Get-ChildItem -Path $rootPath -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { Test-LethalCompanyPath $_.FullName } | ForEach-Object {
+        $lethalCompanyPath = $_.FullName
+        $lethalCompanyPath = Join-Path $lethalCompanyPath 'steamapps\common\Lethal Company'
+        Write-Host "Found Lethal Company directory at: $lethalCompanyPath"
+        return $lethalCompanyPath
+    }
+}
+
+# Get all logical drives on the system
+$drives = Get-WmiObject Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object -ExpandProperty DeviceID
+
+# Find all instances of the Lethal Company directory
+$allLethalCompanyPaths = $drives | ForEach-Object { Find-LethalCompanyPaths -rootPath $_ }
+
+# Display the results
+if ($allLethalCompanyPaths.Count -eq 1) {
+    Write-Host "Lethal Company directory found at: $($allLethalCompanyPaths[0])"
+} elseif ($allLethalCompanyPaths.Count -gt 1) {
+    Write-Host "More than one Lethal Company directory found on the system. Please clean up the duplicates."
+    Exit 1
+} else {
+    Write-Host "Couldn't find any instances of the Lethal Company directory..."
 }
 
 # Function to get the latest version from GitHub releases using the GitHub API
@@ -83,8 +96,7 @@ if (-not (Test-Path $tempDir -PathType Container)) {
     Write-Host "Temporary Directory Already Exists: $tempDir"
 }
 
-# Find Lethal Company directory
-$lethalCompanyDir = Find-SteamLibrary
+$lethalCompanyDir = $allLethalCompanyPaths
 
 if ($lethalCompanyDir -eq $null) {
     Write-Host "Lethal Company directory not found."
