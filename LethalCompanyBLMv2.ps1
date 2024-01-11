@@ -1,3 +1,47 @@
+param (
+    [string]$modListFile = ""
+)
+
+# Default mods
+$defaultMods = @(
+    "bizzlemip/BiggerLobby",
+    "2018/LC_API",
+    "tinyhoot/ShipLobby",
+    "SirTyler/BetterTeleporter",
+    "Suskitech/AlwaysHearActiveWalkies",
+    "Sligili/More_Emotes",
+    "FlipMods/BetterStamina",
+    "AlexCodesGames/AdditionalSuits",
+    "RugbugRedfern/Skinwalkers",
+    "TheBeeTeam/PersistentPurchases"
+)
+
+# Initialize the $mods array
+$mods = @()
+
+# If a mod list file is provided, read the file and use its content
+if ($modListFile -ne "") {
+    $fileMods = Get-Content $modListFile
+
+    # Parse the file mods and add them to the $mods array
+    foreach ($mod in $fileMods) {
+        $modInfo = $mod -split '/'
+        $mods += @{
+            User = $modInfo[0]
+            Mod = $modInfo[1]
+        }
+    }
+} else {
+    # If no file is provided, use the default mods
+    foreach ($mod in $defaultMods) {
+        $modInfo = $mod -split '/'
+        $mods += @{
+            User = $modInfo[0]
+            Mod = $modInfo[1]
+        }
+    }
+}
+
 # Function to find all instances of the Lethal Company directory
 function Find-LethalCompanyPaths {
     param (
@@ -64,15 +108,23 @@ function Get-LatestVersionFromThunderstore {
         [string]$url
     )
 
-    $pageContent = Invoke-WebRequest -Uri $url
-    $versionRegex = '(?<=<td>\s*\d{4}-\d{2}-\d{2}\s*<\/td>\s*<td>\s*)([\d\.]+)(?=\s*<\/td>\s*<td>\s*\d+\s*<\/td>\s*<td>\s*<a href="[^"]+">Version [\d\.]+<\/a>\s*<\/td>)'
-    $latestVersion = [regex]::Match($pageContent.Content, $versionRegex).Groups[1].Value
+    try {
+        $pageContent = Invoke-WebRequest -Uri $url
+        $versionRegex = '(?<=<td>\s*\d{4}-\d{2}-\d{2}\s*<\/td>\s*<td>\s*)([\d\.]+)(?=\s*<\/td>\s*<td>\s*\d+\s*<\/td>\s*<td class="d-flex gap-1">)'
+        $latestVersion = [regex]::Match($pageContent.Content, $versionRegex).Groups[1].Value
 
-    if ($latestVersion -ne "") {
-        return $latestVersion
+        if ($latestVersion -ne "") {
+            return $latestVersion
+        }
+        else {
+            Write-Host "Failed to extract version from the page."
+            return $null
+        }
     }
-
-    return $null
+    catch {
+        Write-Host "Error retrieving page content: $_"
+        return $null
+    }
 }
 
 # Set the temporary directory path
@@ -140,33 +192,19 @@ if ($latestVersion) {
 $bepinexdownloadPath = [System.IO.Path]::Combine($tempDir, "BepInEx.zip")
 $bepinexextractPath = [System.IO.Path]::Combine($tempDir, "BepInEx")
 
-# Define a hashtable or an array of objects with user/mod information
-$mods = @(
-    @{ User = "bizzlemip"; Mod = "BiggerLobby" },
-    @{ User = "2018"; Mod = "LC_API" },
-    @{ User = "tinyhoot"; Mod = "ShipLobby" },
-    @{ User = "SirTyler"; Mod = "BetterTeleporter" },
-    @{ User = "Suskitech"; Mod = "AlwaysHearActiveWalkies" },
-    @{ User = "Sligili"; Mod = "More_Emotes" },
-    @{ User = "FlipMods"; Mod = "ReservedItemSlotCore" },
-    @{ User = "FlipMods"; Mod = "ReservedFlashlightSlot" },
-    @{ User = "FlipMods"; Mod = "ReservedWalkieSlot" },
-    @{ User = "FlipMods"; Mod = "BetterStamina" },
-    @{ User = "AlexCodesGames"; Mod = "AdditionalSuits" },
-    @{ User = "RugbugRedfern"; Mod = "Skinwalkers" },
-    @{ User = "TheBeeTeam"; Mod = "PersistentPurchases" }
-)
-
 # Get the latest version for each Thunderstore mod
-$versions = @()
 foreach ($mod in $mods) {
-    $baseUrl = "https://thunderstore.io/c/lethal-company/p/$($mod['User'])/$($mod['Mod'])/"
+    $modUser = $mod['User']
+    $modName = $mod['Mod']
+    
+    $baseUrl = "https://thunderstore.io/c/lethal-company/p/$modUser/$modName/versions"
     $latestVersion = Get-LatestVersionFromThunderstore -url $baseUrl
-    if ($latestVersion) {
-        Write-Host "Latest version for $($mod['User'])/$($mod['Mod']): $latestVersion"
+
+    if ($latestVersion -ne $null) {
+        Write-Host "Latest version of $modName by $modUser is $latestVersion."
         $mod['Version'] = $latestVersion
     } else {
-        Write-Host "Failed to retrieve version for $($mod['User'])/$($mod['Mod'])"
+        Write-Host "Failed to extract version for $modUser/$modName."
         # Pause for 10 seconds before closing the PowerShell console
         Start-Sleep -Seconds 10
         Exit
@@ -189,7 +227,7 @@ $downloadPaths = foreach ($mod in $mods) {
 }
 
 $extractPaths = foreach ($mod in $mods) {
-    [System.IO.Path]::Combine($tempDir, $mod['Mod'])
+    [System.IO.Path]::Combine($tempDir, $modName)
 }
 
 # Download files to the temporary directory
@@ -204,6 +242,7 @@ try {
     exit 1
 }
 for ($i = 0; $i -lt $urls.Count; $i++) {
+    $modInfo = $mods[$i]
     try {
         Write-Host "Downloading $($mods[$i]['Mod'])..."
         Invoke-WebRequest -Uri $urls[$i] -OutFile $downloadPaths[$i]
@@ -256,7 +295,7 @@ if ($lethalCompanyDir -ne $null) {
 
     # Copy BepInEx core files
     Write-Host "Installing BepInEx..."
-    Copy-Item "$tempDir\BepInEx\BepInEx\core\*" $destinationBepInExCore -Recurse -Force
+    Copy-Item "$bepinexextractPath\*" $lethalCompanyDir -Recurse -Force
 
     # Install each mod
     for ($i = 0; $i -lt $mods.Count; $i++) {
@@ -274,7 +313,7 @@ if ($lethalCompanyDir -ne $null) {
             Copy-Item "$bepInExFolder\*" $destinationBepInEx -Recurse -Force
         } else {
             # If no BepInEx folder, create a subdirectory with the name of the mod
-            $modDestinationPath = Join-Path $modDestinationPath $mod['Mod']
+            $modDestinationPath = Join-Path $modDestinationPath $modName
             
             # Check if the destination directory already exists
             if (-not (Test-Path $modDestinationPath -PathType Container)) {
@@ -282,7 +321,7 @@ if ($lethalCompanyDir -ne $null) {
             }
 
             # Check if the extracted folder has a subfolder with the name of the mod
-            $modSourceSubfolder = Join-Path $modSourcePath $mod['Mod']
+            $modSourceSubfolder = Join-Path $modSourcePath $modName
             $modSourcePluginsSubfolder = Join-Path $modSourcePath 'plugins'
             if ((Test-Path $modSourceSubfolder) -and ((Get-ChildItem $modSourceSubfolder -Recurse) | Measure-Object).Count -gt 0) {
                 Write-Host "Copying contents from subfolder $($mod['Mod'])..."
