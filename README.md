@@ -8,7 +8,7 @@ This PowerShell script automates the installation of mods for the game Lethal Co
 
 - **modListFile:** Path to a file containing a list of mods to install. If not provided, the script will use a default list.
 
-- **-NoCleanupBepInEx:** A switch that, when present, prevents the script from cleaning up the BepInEx folder during execution.
+- **NoCleanupBepInEx:** A switch that, when present, prevents the script from cleaning up the BepInEx folder during execution.
 
 ### Example with mod list override file
 
@@ -68,7 +68,7 @@ RugbugRedfern/Skinwalkers
    - **Note:** BepInEx is required and included by default regardless of what is in the modListFile.
 
 2. **LC_API Requirement:**
-   - LC_API should be included in every modListFile as it is a required dependency for many mods.
+   - LC_API should be included in every modListFile as it is a required dependency for many mods. I may include it outside of the other mods similar to the BepInEx mod in the near future.
 
 3. **Mod Installations:**
    - For each mod specified in the mod list, the script checks Thunderstore for the latest version and downloads it.
